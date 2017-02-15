@@ -46,18 +46,21 @@ Symbol LenetSymbol() {
   return lenet;
 }
 
+
 int main(int argc, char const *argv[]) {
   /*setup basic configs*/
+  // configure
+  // default params
   int W = 28;
   int H = 28;
-  int batch_size = 128;
-  int max_epoch = 100;
+  int batch_size = 64;
+  int max_epoch = 20;
   float learning_rate = 1e-4;
   float weight_decay = 1e-4;
-
+  // symbol
   auto lenet = LenetSymbol();
+  // args_map
   std::map<string, NDArray> args_map;
-
   args_map["data"] = NDArray(Shape(batch_size, 1, W, H), Context::cpu());
   args_map["data_label"] = NDArray(Shape(batch_size), Context::cpu());
   lenet.InferArgsMap(Context::cpu(), &args_map, args_map);
@@ -66,54 +69,47 @@ int main(int argc, char const *argv[]) {
   NDArray::SampleGaussian(0, 1, &args_map["fc1_w"]);
   args_map["fc2_b"] = NDArray(Shape(10), Context::cpu());
   args_map["fc2_b"] = 0;
-
+  // data
   auto train_iter = MXDataIter("MNISTIter")
-      .SetParam("image", "./train-images-idx3-ubyte")
-      .SetParam("label", "./train-labels-idx1-ubyte")
-      .SetParam("batch_size", batch_size)
-      .SetParam("shuffle", 1)
-      .SetParam("flat", 0)
-      .CreateDataIter();
+    .SetParam("image", "./train-images-idx3-ubyte")
+    .SetParam("label", "./train-labels-idx1-ubyte")
+    .SetParam("batch_size", batch_size)
+    .SetParam("shuffle", 1)
+    .SetParam("flat", 0)
+    .CreateDataIter();
   auto val_iter = MXDataIter("MNISTIter")
       .SetParam("image", "./t10k-images-idx3-ubyte")
       .SetParam("label", "./t10k-labels-idx1-ubyte")
       .CreateDataIter();
-
+  // opt
   Optimizer* opt = OptimizerRegistry::Find("ccsgd");
   opt->SetParam("momentum", 0.9)
      ->SetParam("rescale_grad", 1.0)
      ->SetParam("clip_gradient", 10);
-  // training
-  for (int iter = 0; iter < max_epoch; ++iter) {
-    LG << "Epoch: " << iter;
-    train_iter.Reset();
-    while (train_iter.Next()) {
-      auto data_batch = train_iter.GetDataBatch();
-      args_map["data"] = data_batch.data.Copy(Context::cpu());
-      args_map["data_label"] = data_batch.label.Copy(Context::cpu());
-      NDArray::WaitAll();
-      auto *exec = lenet.SimpleBind(Context::cpu(), args_map);
-      exec->Forward(true);
-      exec->Backward();
-      exec->UpdateAll(opt, learning_rate, weight_decay);
-      delete exec;
-    }
-    // Evaluation
-    Accuracy acu;
-    val_iter.Reset();
-    while (val_iter.Next()) {
-      auto data_batch = val_iter.GetDataBatch();
-      args_map["data"] = data_batch.data.Copy(Context::cpu());
-      args_map["data_label"] = data_batch.label.Copy(Context::cpu());
-      NDArray::WaitAll();
-      auto *exec = lenet.SimpleBind(Context::cpu(), args_map);
-      exec->Forward(false);
-      NDArray::WaitAll();
-      acu.Update(data_batch.label, exec->outputs[0]);
-      delete exec;
-    }
-    LG << "Accuracy: " << acu.Get();
-  }
-  MXNotifyShutdown();
-  return 0;
+  std::vector<Context> ctx = {Context::cpu()};
+  // FeedForwardConfig
+  FeedForwardConfig conf;
+  conf.symbol = lenet;
+  conf.ctx = ctx;
+  conf.num_epoch = max_epoch;
+  conf.epoch_size = 60;
+  conf.optimizer = opt;
+  conf.batch_size = batch_size;
+  conf.learning_rate = learning_rate;
+  conf.weight_decay = weight_decay;
+  conf.args_map = args_map;
+  //  = {
+  //   lenet,
+  //   ctx,
+  //   max_epoch,
+  //   60,
+  //   opt,
+  //   batch_size,
+  //   learning_rate,
+  //   weight_decay,
+  //   args_map
+  // };
+  //train
+  FeedForward* model = new FeedForward(conf);
+  model->Fit(train_iter, val_iter);
 }

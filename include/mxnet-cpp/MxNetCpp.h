@@ -19,5 +19,5 @@
 #include "mxnet-cpp/io.hpp"
 #include "mxnet-cpp/metric.h"
 #include "mxnet-cpp/initializer.h"
-
+#include "mxnet-cpp/model.h"
 #endif  // MXNETCPP_H_

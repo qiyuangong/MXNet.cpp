@@ -1,5 +1,5 @@
 BLAS=-L /opt/openblas/lib -lopenblas -DMSHADOW_USE_CBLAS=1 -DMSHADOW_USE_MKL=0 
-CUDA=-DMSHADOW_USE_CUDA=1
+CUDA=-DMSHADOW_USE_CUDA=0
 
 #COMMFLAGS=-static -static-libgcc -static-libstdc++
 
@@ -15,6 +15,11 @@ ifneq ($(OS), Darwin)
 endif
 
 all: mlp lenet lenet_with_mxdataiter alexnet googlenet inception_bn resnet
+
+hand_written: ./hand_written.cpp
+	$(CXX) -c -std=c++11 $(CFLAGS) $^
+	$(CXX) $(basename $@).o -o $@ $(LDFLAGS)
+	-rm -f $(basename $@).o
 
 lenet_with_mxdataiter: ./lenet_with_mxdataiter.cpp
 	$(CXX) -c -std=c++11 $(CFLAGS) $^
