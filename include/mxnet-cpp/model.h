@@ -71,28 +71,45 @@ class FeedForward {
   explicit FeedForward(const FeedForwardConfig &conf) : conf_(conf) {}
   void Predict();
   void Score();
-  void Fit(MXDataIter &train_iter, MXDataIter &val_iter) {
+  void Fit(MXDataIter &train_iter, MXDataIter &val_iter, string kvstore="local") {
     // stepup metric
 
     // create kvstore for multiple devices and machines
-    // CreateKVStore();
-    // init optmizer
-
-
+    bool update_on_kvstore = false;
+    KVStore* kv = nullptr;
+    if (kvstore != "local") {
+      kv = CreateKVStore();
+      update_on_kvstore = true;
+    }
     // do training
-    TrainMultiDevice(train_iter, val_iter);
+    if (update_on_kvstore) 
+      TrainMultiDevice(train_iter, val_iter, kv);
+    else  
+      TrainMultiDevice(train_iter, val_iter);
   }
   void Save();
   void Load();
   static FeedForward Create();
 
  private:
-  void InitParams();
+  void InitParams(std::vector<std::string> arg_names, std::vector<std::string> aux_names) {
+    //TODO initParams
+    // std::map<std::string, std::vector<mx_uint> > &arg_shapes;
+    // std::vector<std::vector<mx_uint> > *in_shape;
+    // std::vector<std::vector<mx_uint> > *aux_shape;
+    // std::vector<std::vector<mx_uint> > *out_shape;
+    // conf_.symbol.InferShape(arg_shapes, in_shape, aux_shape, out_shape);
+    arg_names = conf_.symbol.ListArguments();
+    // input_names = 0;
+    // param_names = 0;
+    aux_names = conf_.symbol.ListAuxiliaryStates;
+  }
   void InitPredictor();
   void InitIter();
   void InitEvalIter();
   FeedForwardConfig conf_;
-  void InitKVStore(KVStore &kvstore, bool update_on_kvstore) {
+  void InitKVStore(KVStore* kvstore, bool update_on_kvstore) {
+    //TODO initkvstore
     for (auto param in ){
       kvstore.init();
       if (update_on_kvstore)
@@ -100,15 +117,28 @@ class FeedForward {
     }
 
   }
-  void UpdateParamsOnKVStore();
+  void UpdateParamsOnKVStore(KVStore* kvstore, Executor exec) {
+    for (int i =0; i < len(exec.arg_arrarys); i++) {
+      kvstore->Push(i, exec.grad_arrays[i], -1 * i);
+      kvstore->Pull(i, exec.arg_arrays[i],  -1 * i);  
+    }
+    
+  }
   void MultipleCallBacks();
-  void CreateKVStore();
+  KVStore* CreateKVStore(int num_device=1) {
+    // if (num_device <= 1)
+    //   return nullptr;
+    KVStore kv = KVStore();
+    return &kv;
+  }
   void TrainMultiDevice(MXDataIter &train_iter, MXDataIter &val_iter, KVStore* kvstore=nullptr, bool update_on_kvstore=false) {
     // kvstore
+    update_on_kvstore = true;
+    // init optimizer
     if (kvstore != nullptr) 
-      InitKVStore(kvstore, conf_.arg_map, update_on_kvstore);
-    if (update_on_kvstore)
-      kvstore.SetOptimizer(conf_.optimizer);
+      InitKVStore(kvstore, update_on_kvstore);
+    // if (update_on_kvstore)
+    //   kvstore->SetOptimizer(conf_.optimizer);
     // training
     for (int iter = 0; iter < conf_.num_epoch; ++iter) {
       LG << "Epoch: " << iter;
@@ -121,8 +151,11 @@ class FeedForward {
         auto *exec = conf_.symbol.SimpleBind(Context::cpu(), conf_.args_map);
         exec->Forward(true);
         exec->Backward();
-        // TODO kvstore
-        exec->UpdateAll(conf_.optimizer, conf_.learning_rate, conf_.weight_decay);
+        // TODO kvstore update
+        if (update_on_kvstore)
+          UpdateParamsOnKVStore(kvstore, exec);
+        else
+          exec->UpdateAll(conf_.optimizer, conf_.learning_rate, conf_.weight_decay);
         delete exec;
       }
       // Accuray

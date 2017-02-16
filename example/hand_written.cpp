@@ -87,7 +87,7 @@ int main(int argc, char const *argv[]) {
      ->SetParam("rescale_grad", 1.0)
      ->SetParam("clip_gradient", 10);
   std::vector<Context> ctx = {Context::cpu()};
-  // FeedForwardConfig
+  // training parameters
   FeedForwardConfig conf;
   conf.symbol = lenet;
   conf.ctx = ctx;
@@ -111,5 +111,5 @@ int main(int argc, char const *argv[]) {
   // };
   //train
   FeedForward* model = new FeedForward(conf);
-  model->Fit(train_iter, val_iter);
+  model->Fit(train_iter, val_iter, "dist");
 }
