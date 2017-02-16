@@ -59,7 +59,7 @@ struct FeedForwardConfig {
     , num_epoch(0)
     , epoch_size(0)
     , batch_size(64)
-    , learning_rate(0.01)
+    , learning_rate(1e-4)
     , weight_decay(1e-4)
     {}
 };
@@ -92,11 +92,23 @@ class FeedForward {
   void InitIter();
   void InitEvalIter();
   FeedForwardConfig conf_;
-  void InitKVStore();
+  void InitKVStore(KVStore &kvstore, bool update_on_kvstore) {
+    for (auto param in ){
+      kvstore.init();
+      if (update_on_kvstore)
+        kvstore.Pull();
+    }
+
+  }
   void UpdateParamsOnKVStore();
   void MultipleCallBacks();
   void CreateKVStore();
-  void TrainMultiDevice(MXDataIter &train_iter, MXDataIter &val_iter) {
+  void TrainMultiDevice(MXDataIter &train_iter, MXDataIter &val_iter, KVStore* kvstore=nullptr, bool update_on_kvstore=false) {
+    // kvstore
+    if (kvstore != nullptr) 
+      InitKVStore(kvstore, conf_.arg_map, update_on_kvstore);
+    if (update_on_kvstore)
+      kvstore.SetOptimizer(conf_.optimizer);
     // training
     for (int iter = 0; iter < conf_.num_epoch; ++iter) {
       LG << "Epoch: " << iter;
@@ -109,6 +121,7 @@ class FeedForward {
         auto *exec = conf_.symbol.SimpleBind(Context::cpu(), conf_.args_map);
         exec->Forward(true);
         exec->Backward();
+        // TODO kvstore
         exec->UpdateAll(conf_.optimizer, conf_.learning_rate, conf_.weight_decay);
         delete exec;
       }
