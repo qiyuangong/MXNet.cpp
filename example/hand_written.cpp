@@ -70,6 +70,12 @@ int main(int argc, char const *argv[]) {
   NDArray::SampleGaussian(0, 1, &args_map["fc1_w"]);
   args_map["fc2_b"] = NDArray(Shape(10), Context::cpu());
   args_map["fc2_b"] = 0;
+  // Print args Keys
+  for(auto iter = args_map.begin(); iter != args_map.end(); iter++) {
+    LG << iter->first;
+  }
+
+
   // data
   auto train_iter = MXDataIter("MNISTIter")
     .SetParam("image", "./train-images-idx3-ubyte")

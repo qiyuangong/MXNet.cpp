@@ -74,7 +74,7 @@ class FeedForward {
   void Score();
   void Fit(MXDataIter &train_iter, MXDataIter &val_iter, string kvstore="local") {
     // stepup metric
-    // TODO InitParams();
+    // TODO InitParams(conf_.args_map["data"] + conf_.args_map["data_label"]);
     // create kvstore for multiple devices and machines
     bool update_on_kvstore = false;
     KVStore* kv = nullptr;
@@ -96,19 +96,23 @@ class FeedForward {
   static FeedForward Create();
 
  private:
-  void InitParams(std::vector<std::string> arg_names, std::vector<std::string> aux_names) {
+  void InitParams() {
+    // std::vector<std::string> arg_names, std::vector<std::string> aux_names
     //TODO initParams
     // std::map<std::string, std::vector<mx_uint> > &arg_shapes;
     // std::vector<std::vector<mx_uint> > *in_shape;
     // std::vector<std::vector<mx_uint> > *aux_shape;
     // std::vector<std::vector<mx_uint> > *out_shape;
-    // conf_.symbol.InferShape(arg_shapes, in_shape, aux_shape, out_shape);
-    arg_names = conf_.symbol.ListArguments();
+    // conf_.symbol.InferShape(conf_.ctx, &args_map, args_map);
+    conf_.arg_names = conf_.symbol.ListArguments();
     // input_names = input_shapes.keys()
     // input_names = 0;
     // param_names = [key for key in arg_names if key not in input_names]
     // param_names = 0;
-    aux_names = conf_.symbol.ListAuxiliaryStates();
+    conf_.aux_names = conf_.symbol.ListAuxiliaryStates();
+    // TODO for multiple devices
+    // conf_.arg_params = arg_params;
+    // conf_.aux_params = aux_params;
   }
   void InitPredictor();
   void InitIter();
@@ -149,8 +153,8 @@ class FeedForward {
       update_on_kvstore = true;
       InitKVStore(kvstore, update_on_kvstore);
     }
-    // if (update_on_kvstore)
-    //   kvstore->SetOptimizer(conf_.optimizer);
+    if (update_on_kvstore)
+      kvstore->SetOptimizer(conf_.optimizer);
     // training
     for (int iter = 0; iter < conf_.num_epoch; ++iter) {
       LG << "Epoch: " << iter;
