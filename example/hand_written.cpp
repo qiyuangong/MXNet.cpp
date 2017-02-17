@@ -5,6 +5,7 @@
 #include <fstream>
 #include <map>
 #include <string>
+#include <cstring>
 #include <vector>
 #include "mxnet-cpp/MxNetCpp.h"
 using namespace std;
@@ -111,5 +112,12 @@ int main(int argc, char const *argv[]) {
   // };
   //train
   FeedForward* model = new FeedForward(conf);
-  model->Fit(train_iter, val_iter, "dist");
+  if (argc > 1 && strcmp(argv[1], "local") != 0) {
+    LG << "Multiple Machines";  
+    model->Fit(train_iter, val_iter, argv[1]);
+  }
+  else {
+    LG << "Single Machine";
+    model->Fit(train_iter, val_iter);
+  }
 }
