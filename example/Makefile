@@ -14,7 +14,7 @@ ifneq ($(OS), Darwin)
 	LDFLAGS += -lgomp
 endif
 
-all: mlp lenet lenet_with_mxdataiter alexnet googlenet inception_bn resnet
+all: mlp lenet hand_written lenet_with_mxdataiter alexnet googlenet inception_bn resnet
 
 hand_written: ./hand_written.cpp
 	$(CXX) -c -std=c++11 $(CFLAGS) $^
@@ -75,3 +75,4 @@ clean:
 	-rm -f googlenet
 	-rm -f inception_bn
 	-rm -f resnet
+	-rm -f hand_written

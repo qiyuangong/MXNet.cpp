@@ -78,7 +78,9 @@ class FeedForward {
     bool update_on_kvstore = false;
     KVStore* kv = nullptr;
     if (kvstore != "local") {
-      kv = CreateKVStore();
+      kv = CreateKVStore(kvstore);
+      LG << kv;
+      LG << kv->GetType();
       update_on_kvstore = true;
     }
     // do training
@@ -125,25 +127,29 @@ class FeedForward {
   }
   void UpdateParamsOnKVStore(KVStore* kvstore, std::vector<NDArray> arg_arrays, std::vector<NDArray> grad_arrays) {
     for (int i =0; i < arg_arrays.size(); i++) {
+      LG << "Update Params" << i << "on kvstore"; 
       kvstore->Push(i, grad_arrays[i], -1 * i);
       kvstore->Pull(i, &arg_arrays[i],  -1 * i);
-      // cout << "arg_arrays" << arg_arrays[i] << endl;
-      // cout << "grad_arrays" << grad_arrays[i] << endl;
+      // LG << "arg_arrays" << arg_arrays[i];
+      // LG << "grad_arrays" << grad_arrays[i];
     }
   }
   void MultipleCallBacks();
-  KVStore* CreateKVStore(int num_device=1) {
+  static KVStore* CreateKVStore(string kvstore="local", int num_device=1) {
     // if (num_device <= 1)
     //   return nullptr;
-    KVStore kv = KVStore();
+    LG << "KVStore Created"; 
+    KVStore kv = KVStore(kvstore);
+    LG << kv.GetType();
     return &kv;
   }
   void TrainMultiDevice(MXDataIter &train_iter, MXDataIter &val_iter, KVStore* kvstore=nullptr, bool update_on_kvstore=false) {
     // kvstore
-    update_on_kvstore = true;
     // init optimizer
-    if (kvstore != nullptr) 
+    if (kvstore != nullptr) {
+      update_on_kvstore = true;
       InitKVStore(kvstore, update_on_kvstore);
+    }
     // if (update_on_kvstore)
     //   kvstore->SetOptimizer(conf_.optimizer);
     // training
@@ -158,7 +164,6 @@ class FeedForward {
         auto *exec = conf_.symbol.SimpleBind(Context::cpu(), conf_.args_map);
         exec->Forward(true);
         exec->Backward();
-        // TODO kvstore update
         if (update_on_kvstore)
           UpdateParamsOnKVStore(kvstore, exec->arg_arrays, exec->grad_arrays);
         else
