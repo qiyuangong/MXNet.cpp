@@ -100,7 +100,9 @@ class FeedForward {
     // std::vector<std::vector<mx_uint> > *out_shape;
     // conf_.symbol.InferShape(arg_shapes, in_shape, aux_shape, out_shape);
     arg_names = conf_.symbol.ListArguments();
+    // input_names = input_shapes.keys()
     // input_names = 0;
+    // param_names = [key for key in arg_names if key not in input_names]
     // param_names = 0;
     aux_names = conf_.symbol.ListAuxiliaryStates;
   }
@@ -110,19 +112,21 @@ class FeedForward {
   FeedForwardConfig conf_;
   void InitKVStore(KVStore* kvstore, bool update_on_kvstore) {
     //TODO initkvstore
-    for (auto param in ){
-      kvstore.init();
+    // param_arrays, arg_params, param_names,
+    for (int i; i < len(param_arrays); i++) {
+      kvstore.Init(i, arg_params[param_names[i]]);
       if (update_on_kvstore)
-        kvstore.Pull();
+        kvstore.Pull(i, param_arrays[i], -1 * i);
     }
 
   }
-  void UpdateParamsOnKVStore(KVStore* kvstore, Executor exec) {
-    for (int i =0; i < len(exec.arg_arrarys); i++) {
-      kvstore->Push(i, exec.grad_arrays[i], -1 * i);
-      kvstore->Pull(i, exec.arg_arrays[i],  -1 * i);  
+  void UpdateParamsOnKVStore(KVStore* kvstore, std::vector<NDArray> arg_arrays, std::vector<NDArray> grad_arrays) {
+    for (int i =0; i < len(arg_arrarys); i++) {
+      kvstore->Push(i, grad_arrays[i], -1 * i);
+      kvstore->Pull(i, arg_arrays[i],  -1 * i);
+      cout << "arg_arrays" << arg_arrays[i] << endl;
+      cout << "grad_arrays" << grad_arrays[i] << endl;
     }
-    
   }
   void MultipleCallBacks();
   KVStore* CreateKVStore(int num_device=1) {
