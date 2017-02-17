@@ -104,7 +104,7 @@ class FeedForward {
     // input_names = 0;
     // param_names = [key for key in arg_names if key not in input_names]
     // param_names = 0;
-    aux_names = conf_.symbol.ListAuxiliaryStates;
+    aux_names = conf_.symbol.ListAuxiliaryStates();
   }
   void InitPredictor();
   void InitIter();
@@ -112,20 +112,23 @@ class FeedForward {
   FeedForwardConfig conf_;
   void InitKVStore(KVStore* kvstore, bool update_on_kvstore) {
     //TODO initkvstore
+    std::vector<NDArray> param_arrays;
+    std::map<string, NDArray> arg_params;
+    std::vector<string> param_names;
     // param_arrays, arg_params, param_names,
-    for (int i; i < len(param_arrays); i++) {
-      kvstore.Init(i, arg_params[param_names[i]]);
+    for (int i; i < param_arrays.size(); i++) {
+      kvstore->Init(i, arg_params[param_names[i]]);
       if (update_on_kvstore)
-        kvstore.Pull(i, param_arrays[i], -1 * i);
+        kvstore->Pull(i, &param_arrays[i], -1 * i);
     }
 
   }
   void UpdateParamsOnKVStore(KVStore* kvstore, std::vector<NDArray> arg_arrays, std::vector<NDArray> grad_arrays) {
-    for (int i =0; i < len(arg_arrarys); i++) {
+    for (int i =0; i < arg_arrays.size(); i++) {
       kvstore->Push(i, grad_arrays[i], -1 * i);
-      kvstore->Pull(i, arg_arrays[i],  -1 * i);
-      cout << "arg_arrays" << arg_arrays[i] << endl;
-      cout << "grad_arrays" << grad_arrays[i] << endl;
+      kvstore->Pull(i, &arg_arrays[i],  -1 * i);
+      // cout << "arg_arrays" << arg_arrays[i] << endl;
+      // cout << "grad_arrays" << grad_arrays[i] << endl;
     }
   }
   void MultipleCallBacks();
@@ -157,7 +160,7 @@ class FeedForward {
         exec->Backward();
         // TODO kvstore update
         if (update_on_kvstore)
-          UpdateParamsOnKVStore(kvstore, exec);
+          UpdateParamsOnKVStore(kvstore, exec->arg_arrays, exec->grad_arrays);
         else
           exec->UpdateAll(conf_.optimizer, conf_.learning_rate, conf_.weight_decay);
         delete exec;
