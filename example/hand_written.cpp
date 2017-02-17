@@ -114,7 +114,7 @@ int main(int argc, char const *argv[]) {
   FeedForward* model = new FeedForward(conf);
   if (argc > 1 && strcmp(argv[1], "local") != 0) {
     LG << "Multiple Machines";  
-    model->Fit(train_iter, val_iter, argv[1]);
+    model->Fit(train_iter, val_iter, "dist");
   }
   else {
     LG << "Single Machine";

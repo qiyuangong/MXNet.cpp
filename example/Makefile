@@ -17,7 +17,7 @@ endif
 all: mlp lenet hand_written lenet_with_mxdataiter alexnet googlenet inception_bn resnet
 
 hand_written: ./hand_written.cpp
-	$(CXX) -c -std=c++11 $(CFLAGS) $^
+	$(CXX) -g hand_written.cpp -c -std=c++11 $(CFLAGS) $^
 	$(CXX) $(basename $@).o -o $@ $(LDFLAGS)
 	-rm -f $(basename $@).o
 

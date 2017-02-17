@@ -38,7 +38,8 @@ struct FeedForwardConfig {
   // TODO(zhangchen-qinyinghua) More implement
   // initializer=Uniform(0.01),
   // numpy_batch_size=128,
-  // arg_params=None, aux_params=None,
+  std::map<string, NDArray> arg_params;
+  std::map<string, NDArray> aux_params;
   // allow_extra_params=False,
   // begin_epoch=0,
   // **kwargs):
@@ -73,14 +74,15 @@ class FeedForward {
   void Score();
   void Fit(MXDataIter &train_iter, MXDataIter &val_iter, string kvstore="local") {
     // stepup metric
-
+    // TODO InitParams();
     // create kvstore for multiple devices and machines
     bool update_on_kvstore = false;
     KVStore* kv = nullptr;
     if (kvstore != "local") {
+      LG << "KVStore Type " << kvstore;
       kv = CreateKVStore(kvstore);
+      // point
       LG << kv;
-      LG << kv->GetType();
       update_on_kvstore = true;
     }
     // do training
@@ -114,6 +116,7 @@ class FeedForward {
   FeedForwardConfig conf_;
   void InitKVStore(KVStore* kvstore, bool update_on_kvstore) {
     //TODO initkvstore
+    LG << "Init KVStore";
     std::vector<NDArray> param_arrays;
     std::map<string, NDArray> arg_params;
     std::vector<string> param_names;
@@ -126,26 +129,22 @@ class FeedForward {
 
   }
   void UpdateParamsOnKVStore(KVStore* kvstore, std::vector<NDArray> arg_arrays, std::vector<NDArray> grad_arrays) {
-    for (int i =0; i < arg_arrays.size(); i++) {
-      LG << "Update Params" << i << "on kvstore"; 
+    for (int i = 0; i < arg_arrays.size(); i++) {
       kvstore->Push(i, grad_arrays[i], -1 * i);
       kvstore->Pull(i, &arg_arrays[i],  -1 * i);
-      // LG << "arg_arrays" << arg_arrays[i];
-      // LG << "grad_arrays" << grad_arrays[i];
     }
   }
   void MultipleCallBacks();
-  static KVStore* CreateKVStore(string kvstore="local", int num_device=1) {
+  KVStore* CreateKVStore(string kvstore, int num_device=1) {
     // if (num_device <= 1)
     //   return nullptr;
-    LG << "KVStore Created"; 
-    KVStore kv = KVStore(kvstore);
-    LG << kv.GetType();
-    return &kv;
+    LG << "KVStore Created";
+    KVStore* kv = new KVStore();
+    return kv;
   }
   void TrainMultiDevice(MXDataIter &train_iter, MXDataIter &val_iter, KVStore* kvstore=nullptr, bool update_on_kvstore=false) {
     // kvstore
-    // init optimizer
+    // TODO init optimizer
     if (kvstore != nullptr) {
       update_on_kvstore = true;
       InitKVStore(kvstore, update_on_kvstore);
