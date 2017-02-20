@@ -74,7 +74,10 @@ class FeedForward {
   void Score();
   void Fit(MXDataIter &train_iter, MXDataIter &val_iter, string kvstore="local") {
     // stepup metric
-    // TODO InitParams(conf_.args_map["data"] + conf_.args_map["data_label"]);
+    std::vector<std::string> arg_names;
+    std::vector<std::string> param_names;
+    std::vector<std::string> aux_names;
+    InitParams(arg_names, param_names, aux_names);
     // create kvstore for multiple devices and machines
     bool update_on_kvstore = false;
     KVStore* kv = nullptr;
@@ -87,29 +90,30 @@ class FeedForward {
     }
     // do training
     if (update_on_kvstore) 
-      TrainMultiDevice(train_iter, val_iter, kv);
+      TrainMultiDevice(train_iter, val_iter, arg_names, param_names, kv);
     else  
-      TrainMultiDevice(train_iter, val_iter);
+      TrainMultiDevice(train_iter, val_iter, arg_names, param_names);
   }
   void Save();
   void Load();
   static FeedForward Create();
 
  private:
-  void InitParams() {
-    // std::vector<std::string> arg_names, std::vector<std::string> aux_names
+  void InitParams(std::vector<std::string> & arg_names, std::vector<std::string> &param_names, std::vector<std::string> &aux_names) {
     //TODO initParams
-    // std::map<std::string, std::vector<mx_uint> > &arg_shapes;
-    // std::vector<std::vector<mx_uint> > *in_shape;
-    // std::vector<std::vector<mx_uint> > *aux_shape;
-    // std::vector<std::vector<mx_uint> > *out_shape;
-    // conf_.symbol.InferShape(conf_.ctx, &args_map, args_map);
-    conf_.arg_names = conf_.symbol.ListArguments();
-    // input_names = input_shapes.keys()
-    // input_names = 0;
-    // param_names = [key for key in arg_names if key not in input_names]
-    // param_names = 0;
-    conf_.aux_names = conf_.symbol.ListAuxiliaryStates();
+    std::vector<std::vector<mx_uint> > in_shapes, aux_shapes, out_shapes;
+    std::map<std::string, std::vector<mx_uint> > arg_shapes;
+    // std::set<std::string> input_names = {"data", "data_label"};
+    arg_names = conf_.symbol.ListArguments();
+    for (const auto &arg_name : arg_names) {
+      if (arg_name != "data" && arg_name != "data_label") 
+        param_names.push_back(arg_name);
+    }
+    for (auto key: arg_names)
+      LG << "arg_name --" << key;
+    for (auto key: param_names)
+      LG << "param_name --" << key;
+    aux_names = conf_.symbol.ListAuxiliaryStates();
     // TODO for multiple devices
     // conf_.arg_params = arg_params;
     // conf_.aux_params = aux_params;
@@ -118,12 +122,14 @@ class FeedForward {
   void InitIter();
   void InitEvalIter();
   FeedForwardConfig conf_;
-  void InitKVStore(KVStore* kvstore, bool update_on_kvstore) {
+  void InitKVStore(
+      KVStore* kvstore,
+      std::vector<NDArray> &param_arrays,
+      std::map<string, NDArray> &arg_params,
+      std::vector<string> &param_names,
+      bool update_on_kvstore=true) {
     //TODO initkvstore
     LG << "Init KVStore";
-    std::vector<NDArray> param_arrays;
-    std::map<string, NDArray> arg_params;
-    std::vector<string> param_names;
     // param_arrays, arg_params, param_names,
     for (int i; i < param_arrays.size(); i++) {
       kvstore->Init(i, arg_params[param_names[i]]);
@@ -132,7 +138,7 @@ class FeedForward {
     }
 
   }
-  void UpdateParamsOnKVStore(KVStore* kvstore, std::vector<NDArray> arg_arrays, std::vector<NDArray> grad_arrays) {
+  void UpdateParamsOnKVStore(KVStore* kvstore, std::vector<NDArray> &arg_arrays, std::vector<NDArray> &grad_arrays) {
     for (int i = 0; i < arg_arrays.size(); i++) {
       kvstore->Push(i, grad_arrays[i], -1 * i);
       kvstore->Pull(i, &arg_arrays[i],  -1 * i);
@@ -146,15 +152,42 @@ class FeedForward {
     KVStore* kv = new KVStore();
     return kv;
   }
-  void TrainMultiDevice(MXDataIter &train_iter, MXDataIter &val_iter, KVStore* kvstore=nullptr, bool update_on_kvstore=false) {
-    // kvstore
-    // TODO init optimizer
+  void TrainMultiDevice(
+      MXDataIter &train_iter,
+      MXDataIter &val_iter,
+      std::vector<std::string> arg_names,
+      std::vector<std::string> param_names,
+      KVStore* kvstore=nullptr,
+      bool update_on_kvstore=false) {
+    // kvstore set params
+    std::map<string, std::vector<mx_uint>> arg_shapes;
+    std::vector<NDArray> arg_arrays;
+    std::vector<NDArray> param_arrays;
+    for (const auto &arg_name : arg_names) {
+      auto iter = conf_.args_map.find(arg_name);
+      if (iter != conf_.args_map.end())
+        arg_shapes[arg_name] = iter->second.GetShape();
+    }
+    // conf_.symbol.InferShape(arg_shapes, &in_shapes, &aux_shapes, &out_shapes);
+
+    for (const auto &arg_name : arg_names) {
+      // auto curr = NDArray(Shape(arg_shapes[arg_name]));
+      // arg_arrays.push_back(curr);
+      if (arg_name != "data" && arg_name != "data_label") {
+        LG << Shape(arg_shapes[arg_name]);
+        auto curr = NDArray(Shape(arg_shapes[arg_name]), Context::cpu());
+        param_arrays.push_back(curr);
+      } 
+        
+    }
+    std::map<string, NDArray> arg_params;
+
     if (kvstore != nullptr) {
       update_on_kvstore = true;
-      InitKVStore(kvstore, update_on_kvstore);
+      InitKVStore(kvstore, param_arrays, arg_params, param_names, update_on_kvstore);
     }
     if (update_on_kvstore)
-      kvstore->SetOptimizer(conf_.optimizer);
+      kvstore->SetOptimizer(std::unique_ptr<Optimizer>(conf_.optimizer));
     // training
     for (int iter = 0; iter < conf_.num_epoch; ++iter) {
       LG << "Epoch: " << iter;
