@@ -85,7 +85,7 @@ class FeedForward {
       LG << "KVStore Type " << kvstore;
       kv = CreateKVStore(kvstore);
       // point
-      LG << kv;
+      // LG << kv;
       update_on_kvstore = true;
     }
     // do training
@@ -105,7 +105,7 @@ class FeedForward {
     std::map<std::string, std::vector<mx_uint> > arg_shapes;
     // std::set<std::string> input_names = {"data", "data_label"};
     arg_names = conf_.symbol.ListArguments();
-    for (const auto &arg_name : arg_names) {
+    for (const auto arg_name : arg_names) {
       if (arg_name != "data" && arg_name != "data_label") 
         param_names.push_back(arg_name);
     }
@@ -130,13 +130,14 @@ class FeedForward {
       bool update_on_kvstore=true) {
     //TODO initkvstore
     LG << "Init KVStore";
-    // param_arrays, arg_params, param_names,
-    for (int i; i < param_arrays.size(); i++) {
+    // param_arrays, arg_params, param_names
+    LG << param_arrays.size();
+    for (int i = 0; i < param_arrays.size(); i++) {
+      LG << "Init " << i << " on " << param_names[i];
       kvstore->Init(i, arg_params[param_names[i]]);
       if (update_on_kvstore)
         kvstore->Pull(i, &param_arrays[i], -1 * i);
     }
-
   }
   void UpdateParamsOnKVStore(KVStore* kvstore, std::vector<NDArray> &arg_arrays, std::vector<NDArray> &grad_arrays) {
     for (int i = 0; i < arg_arrays.size(); i++) {
@@ -150,6 +151,7 @@ class FeedForward {
     //   return nullptr;
     LG << "KVStore Created";
     KVStore* kv = new KVStore();
+    LG << kv->GetRole() << " " << kv->GetNumWorkers();
     return kv;
   }
   void TrainMultiDevice(
@@ -161,7 +163,7 @@ class FeedForward {
       bool update_on_kvstore=false) {
     // kvstore set params
     std::map<string, std::vector<mx_uint>> arg_shapes;
-    std::vector<NDArray> arg_arrays;
+    // std::vector<NDArray> arg_arrays;
     std::vector<NDArray> param_arrays;
     for (const auto &arg_name : arg_names) {
       auto iter = conf_.args_map.find(arg_name);
@@ -169,18 +171,15 @@ class FeedForward {
         arg_shapes[arg_name] = iter->second.GetShape();
     }
     // conf_.symbol.InferShape(arg_shapes, &in_shapes, &aux_shapes, &out_shapes);
-
-    for (const auto &arg_name : arg_names) {
+    std::map<string, NDArray> arg_params;
+    for (const auto &arg_name : param_names) {
       // auto curr = NDArray(Shape(arg_shapes[arg_name]));
       // arg_arrays.push_back(curr);
-      if (arg_name != "data" && arg_name != "data_label") {
-        LG << Shape(arg_shapes[arg_name]);
-        auto curr = NDArray(Shape(arg_shapes[arg_name]), Context::cpu());
-        param_arrays.push_back(curr);
-      } 
-        
+      LG << Shape(arg_shapes[arg_name]);
+      // auto curr = NDArray(Shape(arg_shapes[arg_name]), Context::cpu());
+      param_arrays.push_back(NDArray(Shape(arg_shapes[arg_name]), Context::cpu()));
+      arg_params[arg_name] = NDArray(Shape(arg_shapes[arg_name]), Context::cpu());
     }
-    std::map<string, NDArray> arg_params;
 
     if (kvstore != nullptr) {
       update_on_kvstore = true;
