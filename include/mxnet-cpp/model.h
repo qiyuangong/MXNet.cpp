@@ -139,10 +139,10 @@ class FeedForward {
         kvstore->Pull(i, &param_arrays[i], -1 * i);
     }
   }
-  void UpdateParamsOnKVStore(KVStore* kvstore, std::vector<NDArray> &arg_arrays, std::vector<NDArray> &grad_arrays) {
-    for (int i = 0; i < arg_arrays.size(); i++) {
+  void UpdateParamsOnKVStore(KVStore* kvstore, std::vector<NDArray> &param_arrays, std::vector<NDArray> &grad_arrays) {
+    for (int i = 0; i < param_arrays.size(); i++) {
       kvstore->Push(i, grad_arrays[i], -1 * i);
-      kvstore->Pull(i, &arg_arrays[i],  -1 * i);
+      kvstore->Pull(i, &param_arrays[i],  -1 * i);
     }
   }
   void MultipleCallBacks();
@@ -177,8 +177,8 @@ class FeedForward {
       // arg_arrays.push_back(curr);
       LG << Shape(arg_shapes[arg_name]);
       // auto curr = NDArray(Shape(arg_shapes[arg_name]), Context::cpu());
-      param_arrays.push_back(NDArray(Shape(arg_shapes[arg_name]), Context::cpu()));
-      arg_params[arg_name] = NDArray(Shape(arg_shapes[arg_name]), Context::cpu());
+      param_arrays.push_back(NDArray(Shape(arg_shapes[arg_name]), Context::cpu(), false));
+      arg_params[arg_name] = NDArray(Shape(arg_shapes[arg_name]), Context::cpu(), false);
     }
 
     if (kvstore != nullptr) {
@@ -200,7 +200,7 @@ class FeedForward {
         exec->Forward(true);
         exec->Backward();
         if (update_on_kvstore)
-          UpdateParamsOnKVStore(kvstore, exec->arg_arrays, exec->grad_arrays);
+          UpdateParamsOnKVStore(kvstore, param_arrays, exec->grad_arrays);
         else
           exec->UpdateAll(conf_.optimizer, conf_.learning_rate, conf_.weight_decay);
         delete exec;
