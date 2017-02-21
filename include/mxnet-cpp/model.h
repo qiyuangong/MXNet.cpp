@@ -99,7 +99,10 @@ class FeedForward {
   static FeedForward Create();
 
  private:
-  void InitParams(std::vector<std::string> & arg_names, std::vector<std::string> &param_names, std::vector<std::string> &aux_names) {
+  void InitParams(
+      std::vector<std::string> & arg_names,
+      std::vector<std::string> &param_names,
+      std::vector<std::string> &aux_names) {
     //TODO initParams
     std::vector<std::vector<mx_uint> > in_shapes, aux_shapes, out_shapes;
     std::map<std::string, std::vector<mx_uint> > arg_shapes;
@@ -139,10 +142,19 @@ class FeedForward {
         kvstore->Pull(i, &param_arrays[i], -1 * i);
     }
   }
-  void UpdateParamsOnKVStore(KVStore* kvstore, std::vector<NDArray> &param_arrays, std::vector<NDArray> &grad_arrays) {
-    for (int i = 0; i < param_arrays.size(); i++) {
-      kvstore->Push(i, grad_arrays[i], -1 * i);
-      kvstore->Pull(i, &param_arrays[i],  -1 * i);
+  void UpdateParamsOnKVStore(
+      KVStore* kvstore,
+      std::vector<NDArray> &arg_arrays,
+      std::vector<NDArray> &grad_arrays,
+      int arg_update_begin=1,
+      int arg_update_end=-1) {
+    arg_update_end = arg_update_end < 0 ? grad_arrays.size() - 1 : arg_update_end;
+    // LG << "Param size " << arg_arrays.size();
+    // LG << "Grad size " << grad_arrays.size();
+    for (int i = arg_update_begin; i < arg_update_end; i++) {
+      int curr = i - arg_update_begin;
+      kvstore->Push(curr, grad_arrays[i], -1 * curr);
+      kvstore->Pull(curr, &arg_arrays[i], -1 * curr);
     }
   }
   void MultipleCallBacks();
@@ -200,7 +212,7 @@ class FeedForward {
         exec->Forward(true);
         exec->Backward();
         if (update_on_kvstore)
-          UpdateParamsOnKVStore(kvstore, param_arrays, exec->grad_arrays);
+          UpdateParamsOnKVStore(kvstore, exec->arg_arrays, exec->grad_arrays);
         else
           exec->UpdateAll(conf_.optimizer, conf_.learning_rate, conf_.weight_decay);
         delete exec;
