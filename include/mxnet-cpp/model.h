@@ -82,7 +82,7 @@ class FeedForward {
     bool update_on_kvstore = false;
     KVStore* kv = nullptr;
     if (kvstore != "local") {
-      LG << "KVStore Type " << kvstore;
+      // LG << "KVStore Type " << kvstore;
       kv = CreateKVStore(kvstore);
       // point
       // LG << kv;
@@ -112,10 +112,10 @@ class FeedForward {
       if (arg_name != "data" && arg_name != "data_label") 
         param_names.push_back(arg_name);
     }
-    for (auto key: arg_names)
-      LG << "arg_name --" << key;
-    for (auto key: param_names)
-      LG << "param_name --" << key;
+    // for (auto key: arg_names)
+    //   LG << "arg_name --" << key;
+    // for (auto key: param_names)
+    //   LG << "param_name --" << key;
     aux_names = conf_.symbol.ListAuxiliaryStates();
     // TODO for multiple devices
     // conf_.arg_params = arg_params;
@@ -149,12 +149,33 @@ class FeedForward {
       int arg_update_begin=1,
       int arg_update_end=-1) {
     arg_update_end = arg_update_end < 0 ? grad_arrays.size() - 1 : arg_update_end;
-    // LG << "Param size " << arg_arrays.size();
-    // LG << "Grad size " << grad_arrays.size();
+    LG << "Param size " << arg_arrays[1];
+    LG << "Grad size " << grad_arrays[1];
+    // LG << grad_arrays[1] << arg_arrays[1];
     for (int i = arg_update_begin; i < arg_update_end; i++) {
       int curr = i - arg_update_begin;
       kvstore->Push(curr, grad_arrays[i], -1 * curr);
       kvstore->Pull(curr, &arg_arrays[i], -1 * curr);
+    }
+  }
+  void UPdateParams(
+      std::vector<NDArray> &arg_arrays,
+      std::vector<NDArray> &grad_arrays,
+      Optimizer * opt,
+      KVStore* kvstore=nullptr,
+      int arg_update_begin=1,
+      int arg_update_end=-1){
+    arg_update_end = arg_update_end < 0 ? grad_arrays.size() - 1 : arg_update_end;
+    // LG << "Param size " << arg_arrays[1];
+    // LG << "Grad size " << grad_arrays[1];
+    // LG << grad_arrays[1] << arg_arrays[1];
+    for (int i = arg_update_begin; i < arg_update_end; i++) {
+      int curr = i - arg_update_begin;
+      if (kvstore!=nullptr) {
+        kvstore->Push(curr, grad_arrays[i], -1 * curr);
+        kvstore->Pull(curr, &grad_arrays[i], -1 * curr);
+      }
+      opt->Update(curr, arg_arrays[i], grad_arrays[i]);
     }
   }
   void MultipleCallBacks();
@@ -163,6 +184,7 @@ class FeedForward {
     //   return nullptr;
     LG << "KVStore Created";
     KVStore* kv = new KVStore();
+    // KVStore* kv = new KVStore("dist_sync");
     LG << kv->GetRole() << " " << kv->GetNumWorkers();
     return kv;
   }
@@ -187,18 +209,20 @@ class FeedForward {
     for (const auto &arg_name : param_names) {
       // auto curr = NDArray(Shape(arg_shapes[arg_name]));
       // arg_arrays.push_back(curr);
-      LG << Shape(arg_shapes[arg_name]);
+      // LG << Shape(arg_shapes[arg_name]);
       // auto curr = NDArray(Shape(arg_shapes[arg_name]), Context::cpu());
       param_arrays.push_back(NDArray(Shape(arg_shapes[arg_name]), Context::cpu(), false));
       arg_params[arg_name] = NDArray(Shape(arg_shapes[arg_name]), Context::cpu(), false);
+      // LG << arg_params[arg_name];
     }
-
+    LG << conf_.optimizer->Serialize();
     if (kvstore != nullptr) {
-      update_on_kvstore = true;
+      update_on_kvstore = false;
+      // kvstore->RunServer();
       InitKVStore(kvstore, param_arrays, arg_params, param_names, update_on_kvstore);
     }
     if (update_on_kvstore)
-      kvstore->SetOptimizer(std::unique_ptr<Optimizer>(conf_.optimizer));
+      kvstore->SetOptimizer(std::unique_ptr<Optimizer>(conf_.optimizer), true);
     // training
     for (int iter = 0; iter < conf_.num_epoch; ++iter) {
       LG << "Epoch: " << iter;
@@ -213,8 +237,9 @@ class FeedForward {
         exec->Backward();
         if (update_on_kvstore)
           UpdateParamsOnKVStore(kvstore, exec->arg_arrays, exec->grad_arrays);
-        else
-          exec->UpdateAll(conf_.optimizer, conf_.learning_rate, conf_.weight_decay);
+        else 
+          UPdateParams(exec->arg_arrays, exec->grad_arrays, conf_.optimizer, kvstore);
+        // exec->UpdateAll(conf_.optimizer, conf_.learning_rate, conf_.weight_decay);
         delete exec;
       }
       // Accuray

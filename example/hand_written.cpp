@@ -71,8 +71,8 @@ int main(int argc, char const *argv[]) {
   args_map["fc2_b"] = NDArray(Shape(10), Context::cpu());
   args_map["fc2_b"] = 0;
   // Print args Keys
-  for(auto &iter :args_map)
-    LG << iter.first;
+  // for(auto &iter :args_map)
+  //   LG << iter.first;
   // data
   auto train_iter = MXDataIter("MNISTIter")
     .SetParam("image", "./train-images-idx3-ubyte")
@@ -89,7 +89,9 @@ int main(int argc, char const *argv[]) {
   Optimizer* opt = OptimizerRegistry::Find("ccsgd");
   opt->SetParam("momentum", 0.9)
      ->SetParam("rescale_grad", 1.0)
-     ->SetParam("clip_gradient", 10);
+     ->SetParam("clip_gradient", 10)
+     ->SetParam("lr", learning_rate)
+     ->SetParam("wd", weight_decay);
   std::vector<Context> ctx = {Context::cpu()};
   // training parameters
   FeedForwardConfig conf;

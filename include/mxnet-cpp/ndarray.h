@@ -211,6 +211,7 @@ class NDArray {
   */
   NDArray &operator/=(const NDArray &src);
   NDArray ArgmaxChannel();
+  friend std::ostream &operator<<(std::ostream &os, const NDArray &src);
   /*!
   * \brief Do a synchronize copy from a continugous CPU memory region.
   *
@@ -401,6 +402,20 @@ class NDArray {
  private:
   std::shared_ptr<NDBlob> blob_ptr_;
 };
+
+inline std::ostream &operator<<(std::ostream &os, const NDArray &src) {
+  Shape curr_shape = Shape(src.GetShape());
+  os << "NDArray " << curr_shape;
+  int min_col = 10;
+  // for (index_t i = 0; i < curr_shape.ndim(); ++i)
+  //   if (static_cast<int>(curr_shape[i]) < min_col)
+  //     min_col = static_cast<int>(curr_shape[i]);
+  const mx_float * curr_data = src.GetData();
+  for (int i = 0; i < min_col; ++i) {
+    os << curr_data[i] << " ";  // Supports negative Shape 'special codes' for inferring
+  }
+  return os;
+}
 }  // namespace cpp
 }  // namespace mxnet
 
