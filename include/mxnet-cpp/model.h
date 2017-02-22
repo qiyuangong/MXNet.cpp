@@ -130,8 +130,7 @@ class FeedForward {
       std::vector<NDArray> &param_arrays,
       std::map<string, NDArray> &arg_params,
       std::vector<string> &param_names,
-      bool update_on_kvstore=true) {
-    //TODO initkvstore
+      bool update_on_kvstore=false) {
     LG << "Init KVStore";
     // param_arrays, arg_params, param_names
     LG << param_arrays.size();
@@ -183,7 +182,12 @@ class FeedForward {
     // if (num_device <= 1)
     //   return nullptr;
     LG << "KVStore Created";
-    KVStore* kv = new KVStore();
+    KVStore* kv = nullptr;
+    // if (kvstore.find("dist") == std:string::npos)
+    //   kv = new KVStore(kvstore);
+    // else if (kvstore != std:string::npos && num_device > 1)
+    //   kv = new KVStore();
+    kv = new KVStore();
     // KVStore* kv = new KVStore("dist_sync");
     LG << kv->GetRole() << " " << kv->GetNumWorkers();
     return kv;
