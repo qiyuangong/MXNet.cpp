@@ -183,11 +183,14 @@ class FeedForward {
     //   return nullptr;
     LG << "KVStore Created";
     KVStore* kv = nullptr;
-    // if (kvstore.find("dist") == std:string::npos)
-    //   kv = new KVStore(kvstore);
-    // else if (kvstore != std:string::npos && num_device > 1)
-    //   kv = new KVStore();
-    kv = new KVStore();
+    auto has = [kvstore](const std::string& pattern) {
+      return kvstore.find(pattern) != std::string::npos;
+    };
+    if (has("dist"))
+      kv = new KVStore(kvstore);
+    else if (has("local") && num_device > 1)
+      kv = new KVStore();
+    // kv = new KVStore();
     // KVStore* kv = new KVStore("dist_sync");
     LG << kv->GetRole() << " " << kv->GetNumWorkers();
     return kv;
