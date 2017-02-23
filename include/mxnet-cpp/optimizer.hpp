@@ -37,10 +37,6 @@ void Optimizer::Update(int index, NDArray weight, NDArray grad, mx_float lr,
   Update(index, weight, grad);
 }
 
-void Optimizer::Update(int index, NDArray weight, NDArray grad) {
-  Update(index, weight, grad);
-}
-
 std::string Optimizer::Serialize() const {
   using ValueType = std::map<std::string, std::string>::value_type;
   auto params = params_;

@@ -192,7 +192,8 @@ class FeedForward {
       kv = new KVStore();
     // kv = new KVStore();
     // KVStore* kv = new KVStore("dist_sync");
-    LG << kv->GetRole() << " " << kv->GetNumWorkers();
+    LG << "KVstore Role "<<kv->GetRole();
+    LG << kv->GetNumWorkers();
     return kv;
   }
   void TrainMultiDevice(
