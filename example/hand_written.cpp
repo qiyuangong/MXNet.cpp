@@ -52,6 +52,13 @@ int main(int argc, char const *argv[]) {
   /*setup basic configs*/
   // configure
   // default params
+  // Launch KVStore Server if this node is not a worker
+  auto role = KVStore::GetRole();
+  if (role != "worker") {
+    auto kv = new KVStore("dist");
+    kv->RunServer();
+    exit(1);
+  }
   int W = 28;
   int H = 28;
   int batch_size = 64;

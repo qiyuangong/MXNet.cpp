@@ -157,7 +157,7 @@ void KVStore::Barrier() const {
   CHECK_EQ(MXKVStoreBarrier(handle_), 0);
 }
 
-std::string KVStore::GetRole() const {
+std::string KVStore::GetRole() {
   int ret;
   CHECK_EQ(MXKVStoreIsSchedulerNode(&ret), 0);
   if (ret) {

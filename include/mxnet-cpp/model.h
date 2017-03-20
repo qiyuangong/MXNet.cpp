@@ -170,7 +170,7 @@ class FeedForward {
     // LG << grad_arrays[1] << arg_arrays[1];
     for (int i = arg_update_begin; i < arg_update_end; i++) {
       int curr = i - arg_update_begin;
-      if (kvstore!=nullptr) {
+      if (kvstore != nullptr) {
         kvstore->Push(curr, grad_arrays[i], -1 * curr);
         kvstore->Pull(curr, &grad_arrays[i], -1 * curr);
       }
@@ -194,6 +194,7 @@ class FeedForward {
     // KVStore* kv = new KVStore("dist_sync");
     LG << "KVstore Role "<<kv->GetRole();
     LG << kv->GetNumWorkers();
+    // kv->RunServer();
     return kv;
   }
   void TrainMultiDevice(
